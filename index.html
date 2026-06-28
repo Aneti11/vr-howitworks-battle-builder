@@ -107,12 +107,15 @@ footer a:hover{text-decoration:underline}
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('build')">🔗 Боевая связка</button>
-  <button class="tab-btn" onclick="switchTab('heroes')">🦸 Подбор героев</button>
+  <button class="tab-btn active" onclick="switchTab('heroes')">🦸 Подбор героев</button>
+  <button class="tab-btn" onclick="switchTab('build')">🔗 Боевая связка</button>
 </div>
 
+<!-- ==================== ПОДБОР ГЕРОЕВ (первая вкладка) ==================== -->
+<div class="tab-panel active" id="tab-heroes-placeholder" style="display:none"></div>
+
 <!-- ==================== БОЕВАЯ СВЯЗКА ==================== -->
-<div class="tab-panel active" id="tab-build">
+<div class="tab-panel" id="tab-build">
 
   <!-- Сезон -->
   <div class="section">
@@ -190,7 +193,7 @@ footer a:hover{text-decoration:underline}
 </div>
 
 <!-- ==================== ПОДБОР ГЕРОЕВ ==================== -->
-<div class="tab-panel" id="tab-heroes">
+<div class="tab-panel active" id="tab-heroes">
   <div class="coming-soon">
     <div class="icon">🚧</div>
     <p>Инструмент "Подбор героев" скоро появится!</p>
@@ -378,7 +381,12 @@ async function submitBuild() {
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Ошибка сервера');
+    if (!res.ok) {
+      if (data.error === 'QUOTA_EXHAUSTED') {
+        throw new Error('Сервис временно перегружен — все запросы заняты 🙏 Попробуй через несколько минут!');
+      }
+      throw new Error(data.error || 'Ошибка сервера');
+    }
 
     document.getElementById('result-content-build').textContent = data.result;
     document.getElementById('result-build').classList.add('active');
