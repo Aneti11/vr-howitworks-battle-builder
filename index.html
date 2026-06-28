@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Viking Rise — Боевой помощник</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Roboto,system-ui,sans-serif;background:#0f0f14;color:#e2e8f0;padding:16px;padding-bottom:24px;min-height:100vh}
+.container{max-width:720px;margin:0 auto}
+
+/* HEADER */
+.header{margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #1a1a2a}
+h1{font-size:1.4rem;color:#f1c40f;letter-spacing:1px}
+.subtitle{font-size:.78rem;color:#64748b;margin-top:4px}
+
+/* TABS */
+.tabs{display:flex;gap:8px;margin-bottom:20px}
+.tab-btn{flex:1;background:#1a1a26;border:1px solid #2a2a3a;color:#94a3b8;padding:10px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.78rem;transition:.2s;text-align:center}
+.tab-btn:hover{background:#2a2a3a}
+.tab-btn.active{background:#2d3748;border-color:#f1c40f;color:#f1c40f;box-shadow:0 0 20px rgba(241,196,15,0.06)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* SECTION */
+.section{background:#14141e;border:1px solid #262638;border-radius:12px;padding:16px;margin-bottom:12px}
+.section-title{font-size:.7rem;text-transform:uppercase;color:#94a3b8;letter-spacing:.8px;font-weight:700;border-left:3px solid #f1c40f;padding-left:8px;margin-bottom:12px}
+
+/* OPTION BUTTONS */
+.options{display:flex;flex-wrap:wrap;gap:8px}
+.opt-btn{background:#1a1a28;border:1px solid #2a2a3a;color:#cbd5e1;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;transition:.2s;user-select:none}
+.opt-btn:hover{background:#252535;border-color:#4a4a6a}
+.opt-btn.selected{background:#2d3748;border-color:#f1c40f;color:#f1c40f}
+.opt-btn.disabled{opacity:.35;cursor:default;pointer-events:none}
+
+/* COMBAT TYPE */
+.combat-type-row{display:flex;gap:8px;margin-bottom:10px}
+.combat-type-btn{flex:1;background:#1a1a28;border:1px solid #2a2a3a;color:#cbd5e1;padding:10px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:700;transition:.2s;text-align:center}
+.combat-type-btn:hover{background:#252535}
+.combat-type-btn.selected{border-color:#f1c40f;color:#f1c40f;background:#2d3748}
+.combat-type-btn.pvp.selected{border-color:#f87171;color:#f87171;background:#2d1a1a}
+.combat-type-btn.pve.selected{border-color:#4ade80;color:#4ade80;background:#1a2d1a}
+
+.combat-options{display:none;flex-wrap:wrap;gap:8px}
+.combat-options.active{display:flex}
+.combat-options.pvp .opt-btn.selected{border-color:#f87171;color:#f87171}
+.combat-options.pve .opt-btn.selected{border-color:#4ade80;color:#4ade80}
+
+/* HEROES */
+.heroes-grid{display:flex;flex-wrap:wrap;gap:6px}
+.hero-btn{background:#1a1a28;border:1px solid #2a2a3a;color:#cbd5e1;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600;transition:.2s;user-select:none}
+.hero-btn:hover{background:#252535}
+.hero-btn.selected{background:#2d3748;border-color:#a78bfa;color:#a78bfa}
+.hero-btn.disabled{opacity:.3;cursor:default;pointer-events:none}
+.heroes-hint{font-size:.7rem;color:#64748b;margin-top:8px}
+
+/* SUBMIT */
+.btn-submit{width:100%;background:linear-gradient(135deg,#b7791f,#f1c40f);color:#0f0f14;border:none;padding:14px;border-radius:10px;cursor:pointer;font-size:1rem;font-weight:800;letter-spacing:.5px;transition:.2s;margin-top:4px}
+.btn-submit:hover{opacity:.9;transform:translateY(-1px)}
+.btn-submit:disabled{opacity:.4;cursor:default;transform:none}
+
+/* LOADING */
+.loading{display:none;text-align:center;padding:32px 16px}
+.loading.active{display:block}
+.spinner{width:40px;height:40px;border:3px solid #2a2a3a;border-top-color:#f1c40f;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:#94a3b8;font-size:.85rem}
+.loading-sub{color:#64748b;font-size:.75rem;margin-top:6px}
+
+/* RESULT */
+.result{display:none;background:#14141e;border:1px solid #262638;border-radius:12px;padding:20px;margin-top:12px}
+.result.active{display:block}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #262638}
+.result-title{font-size:1rem;font-weight:700;color:#f1c40f}
+.btn-reset{background:#1a1a28;border:1px solid #2a2a3a;color:#94a3b8;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:600;transition:.2s}
+.btn-reset:hover{background:#252535;color:#e2e8f0}
+.result-content{font-size:.85rem;line-height:1.7;white-space:pre-wrap;color:#cbd5e1}
+.result-content strong{color:#f1c40f}
+
+/* ERROR */
+.error{display:none;background:#2d1a1a;border:1px solid #5c2a2a;border-radius:10px;padding:14px;margin-top:12px;color:#f87171;font-size:.82rem}
+.error.active{display:block}
+
+/* FOOTER */
+footer{margin-top:24px;font-size:.75rem;color:#475569;text-align:center;border-top:1px solid #1a1a2a;padding-top:14px}
+footer a{color:#60a5fa;text-decoration:none;font-weight:600}
+footer a:hover{text-decoration:underline}
+
+/* COMING SOON */
+.coming-soon{text-align:center;padding:40px 20px;color:#475569}
+.coming-soon .icon{font-size:2.5rem;margin-bottom:12px}
+.coming-soon p{font-size:.85rem}
+
+@media(max-width:480px){
+  h1{font-size:1.2rem}
+  .opt-btn{padding:7px 10px;font-size:.75rem}
+  .hero-btn{padding:5px 10px;font-size:.72rem}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>⚔️ Viking Rise — Боевой помощник</h1>
+  <div class="subtitle">Подбор героев и боевых связок на основе игровых данных</div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('build')">🔗 Боевая связка</button>
+  <button class="tab-btn" onclick="switchTab('heroes')">🦸 Подбор героев</button>
+</div>
+
+<!-- ==================== БОЕВАЯ СВЯЗКА ==================== -->
+<div class="tab-panel active" id="tab-build">
+
+  <!-- Сезон -->
+  <div class="section">
+    <div class="section-title">Сезон королевства</div>
+    <div class="options" id="season-opts">
+      <button class="opt-btn" onclick="selectSeason('s1')">🌱 Сезон 1</button>
+      <button class="opt-btn" onclick="selectSeason('s2')">🌿 Сезон 2</button>
+      <button class="opt-btn" onclick="selectSeason('s3')">🌳 Сезон 3</button>
+      <button class="opt-btn" onclick="selectSeason('sc')">⚔️ Сезон завоеваний</button>
+    </div>
+  </div>
+
+  <!-- Тип войск -->
+  <div class="section">
+    <div class="section-title">Тип войск</div>
+    <div class="options" id="troop-opts">
+      <button class="opt-btn" onclick="selectTroop('infantry')">⚔️ Пехота</button>
+      <button class="opt-btn" onclick="selectTroop('spearmen')">🛡️ Пикинеры</button>
+      <button class="opt-btn" onclick="selectTroop('archers')">🏹 Лучники</button>
+      <button class="opt-btn" onclick="selectTroop('mixed')">🔀 Смешанный</button>
+    </div>
+  </div>
+
+  <!-- Вид боя -->
+  <div class="section">
+    <div class="section-title">Вид боя</div>
+    <div class="combat-type-row">
+      <button class="combat-type-btn pvp" onclick="selectCombatType('pvp')">⚔️ PvP</button>
+      <button class="combat-type-btn pve" onclick="selectCombatType('pve')">🌿 PvE</button>
+    </div>
+    <div class="combat-options pvp" id="pvp-opts">
+      <button class="opt-btn" onclick="selectCombat('Дуэль')">Дуэль</button>
+      <button class="opt-btn" onclick="selectCombat('Арена')">Арена</button>
+      <button class="opt-btn" onclick="selectCombat('Масс-PvP (танк)')">Масс-PvP (танк)</button>
+      <button class="opt-btn" onclick="selectCombat('Масс-PvP (ДД — фарм КП)')">Масс-PvP (ДД)</button>
+      <button class="opt-btn" onclick="selectCombat('Ралли на объект')">Ралли на объект</button>
+      <button class="opt-btn" onclick="selectCombat('Контр-Ралли')">Контр-Ралли</button>
+    </div>
+    <div class="combat-options pve" id="pve-opts">
+      <button class="opt-btn" onclick="selectCombat('Нифлунги')">Нифлунги</button>
+      <button class="opt-btn" onclick="selectCombat('Ралли на боссов')">Ралли на боссов</button>
+      <button class="opt-btn" onclick="selectCombat('Ралли на объект PvE')">Ралли на объект</button>
+      <button class="opt-btn" onclick="selectCombat('События')">События</button>
+    </div>
+  </div>
+
+  <!-- Герои -->
+  <div class="section">
+    <div class="section-title">Герои (выбери двух)</div>
+    <div class="heroes-grid" id="heroes-grid-build">
+      <div style="color:#64748b;font-size:.8rem">Сначала выбери сезон и тип войск</div>
+    </div>
+    <div class="heroes-hint" id="heroes-hint-build">Выбрано: 0 из 2</div>
+  </div>
+
+  <button class="btn-submit" id="btn-build" onclick="submitBuild()" disabled>
+    ⚡ Подобрать связку
+  </button>
+
+  <div class="loading" id="loading-build">
+    <div class="spinner"></div>
+    <div class="loading-text">Формирую боевую связку...</div>
+    <div class="loading-sub">Анализирую героев, умения и снаряжение</div>
+  </div>
+
+  <div class="error" id="error-build"></div>
+  <div class="result" id="result-build">
+    <div class="result-header">
+      <div class="result-title">📋 Боевая связка</div>
+      <button class="btn-reset" onclick="resetBuild()">🔄 Новый запрос</button>
+    </div>
+    <div class="result-content" id="result-content-build"></div>
+  </div>
+
+</div>
+
+<!-- ==================== ПОДБОР ГЕРОЕВ ==================== -->
+<div class="tab-panel" id="tab-heroes">
+  <div class="coming-soon">
+    <div class="icon">🚧</div>
+    <p>Инструмент "Подбор героев" скоро появится!</p>
+  </div>
+</div>
+
+<footer>Специально для ТГ-канала <a href="https://t.me/vikingrise_howitworks" target="_blank">"Viking Rise: как это работает"</a></footer>
+
+</div>
+
+<script>
+// ====================================================
+// ДАННЫЕ ГЕРОЕВ
+// ====================================================
+const HEROES = {
+  s1: {
+    infantry: ['Сесиль','Грегори','Йенс','Хоберт','Бьорн'],
+    spearmen: ['Вудер','Лэрд','Сигурд','Иветта'],
+    archers:  ['Олена','Верданди','Артур'],
+    mixed:    ['Айвор','Лейдольф','Ивана','Рагнар'],
+  },
+  s2: {
+    infantry: ['Лагерта'],
+    spearmen: ['Хельгар'],
+    archers:  ['Юльми'],
+    mixed:    [],
+  },
+  s3: {
+    infantry: ['Маргит'],
+    spearmen: ['Лодочник'],
+    archers:  ['Леандра'],
+    mixed:    ['Этельфледа'],
+  },
+  sc: {
+    infantry: ['Вали','Сефина','Грета','Сигрид','Олаф','Торстейн','Хаварл'],
+    spearmen: ['Рольф','Ная','Гуннар','Хильда','Сигни','Тироти','Гальвейг'],
+    archers:  ['Альф','Саша','Чарльтон','Хейдрун','Глоа','Дэйлен','Эфлрея'],
+    mixed:    [],
+  },
+};
+
+// Сезоны накапливаются
+function getHeroesForSeason(season, troop) {
+  const order = ['s1','s2','s3','sc'];
+  const idx = order.indexOf(season);
+  let result = [];
+  for (let i = 0; i <= idx; i++) {
+    const s = order[i];
+    if (HEROES[s] && HEROES[s][troop]) {
+      result = result.concat(HEROES[s][troop]);
+    }
+  }
+  return result;
+}
+
+// ====================================================
+// СОСТОЯНИЕ
+// ====================================================
+const state = {
+  season: null,
+  troop: null,
+  combatType: null,
+  combat: null,
+  heroes: [],
+};
+
+// ====================================================
+// ВЫБОР ПАРАМЕТРОВ
+// ====================================================
+function selectSeason(val) {
+  state.season = val;
+  state.heroes = [];
+  highlightOpts('season-opts', val);
+  updateHeroesGrid();
+  checkSubmit();
+}
+
+function selectTroop(val) {
+  state.troop = val;
+  state.heroes = [];
+  highlightOpts('troop-opts', val);
+  updateHeroesGrid();
+  checkSubmit();
+}
+
+function selectCombatType(val) {
+  state.combatType = val;
+  state.combat = null;
+  document.querySelectorAll('.combat-type-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector(`.combat-type-btn.${val}`).classList.add('selected');
+  document.getElementById('pvp-opts').classList.remove('active');
+  document.getElementById('pve-opts').classList.remove('active');
+  document.getElementById(`${val}-opts`).classList.add('active');
+  document.querySelectorAll(`#${val}-opts .opt-btn`).forEach(b => b.classList.remove('selected'));
+  checkSubmit();
+}
+
+function selectCombat(val) {
+  state.combat = val;
+  const activeOpts = document.querySelector('.combat-options.active');
+  if (activeOpts) {
+    activeOpts.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    event.target.classList.add('selected');
+  }
+  checkSubmit();
+}
+
+function highlightOpts(containerId, val) {
+  document.querySelectorAll(`#${containerId} .opt-btn`).forEach(b => b.classList.remove('selected'));
+  const btns = document.querySelectorAll(`#${containerId} .opt-btn`);
+  btns.forEach(b => {
+    if (b.getAttribute('onclick').includes(`'${val}'`)) b.classList.add('selected');
+  });
+}
+
+// ====================================================
+// ГЕРОИ
+// ====================================================
+function updateHeroesGrid() {
+  const grid = document.getElementById('heroes-grid-build');
+  if (!state.season || !state.troop) {
+    grid.innerHTML = '<div style="color:#64748b;font-size:.8rem">Сначала выбери сезон и тип войск</div>';
+    return;
+  }
+  const heroes = getHeroesForSeason(state.season, state.troop);
+  if (heroes.length === 0) {
+    grid.innerHTML = '<div style="color:#64748b;font-size:.8rem">Нет героев для этого сочетания</div>';
+    return;
+  }
+  grid.innerHTML = heroes.map(h => `
+    <button class="hero-btn ${state.heroes.includes(h) ? 'selected' : ''}"
+      onclick="toggleHero('${h}')">${h}</button>
+  `).join('');
+  updateHeroesHint();
+}
+
+function toggleHero(name) {
+  if (state.heroes.includes(name)) {
+    state.heroes = state.heroes.filter(h => h !== name);
+  } else {
+    if (state.heroes.length >= 2) return;
+    state.heroes.push(name);
+  }
+  updateHeroesGrid();
+  checkSubmit();
+}
+
+function updateHeroesHint() {
+  const hint = document.getElementById('heroes-hint-build');
+  hint.textContent = `Выбрано: ${state.heroes.length} из 2${state.heroes.length > 0 ? ' — ' + state.heroes.join(', ') : ''}`;
+  hint.style.color = state.heroes.length === 2 ? '#a78bfa' : '#64748b';
+}
+
+// ====================================================
+// ПРОВЕРКА ГОТОВНОСТИ
+// ====================================================
+function checkSubmit() {
+  const btn = document.getElementById('btn-build');
+  const ready = state.season && state.troop && state.combatType && state.combat && state.heroes.length === 2;
+  btn.disabled = !ready;
+}
+
+// ====================================================
+// ЗАПРОС
+// ====================================================
+async function submitBuild() {
+  document.getElementById('btn-build').disabled = true;
+  document.getElementById('loading-build').classList.add('active');
+  document.getElementById('result-build').classList.remove('active');
+  document.getElementById('error-build').classList.remove('active');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'build',
+        season: state.season,
+        troop: state.troop,
+        combatType: state.combatType,
+        combat: state.combat,
+        hero1: state.heroes[0],
+        hero2: state.heroes[1],
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка сервера');
+
+    document.getElementById('result-content-build').textContent = data.result;
+    document.getElementById('result-build').classList.add('active');
+    document.getElementById('result-build').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    const errEl = document.getElementById('error-build');
+    errEl.textContent = '❌ ' + (err.message || 'Произошла ошибка. Попробуй ещё раз.');
+    errEl.classList.add('active');
+  } finally {
+    document.getElementById('loading-build').classList.remove('active');
+    document.getElementById('btn-build').disabled = false;
+    checkSubmit();
+  }
+}
+
+function resetBuild() {
+  document.getElementById('result-build').classList.remove('active');
+  document.getElementById('error-build').classList.remove('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ====================================================
+// ТАБЫ
+// ====================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+</script>
+</body>
+</html>
