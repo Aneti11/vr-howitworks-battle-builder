@@ -12,10 +12,18 @@ const GOOGLE_DOCS = [
 ];
 
 // ====================================================
-// КЛЮЧИ GEMINI — ротация при исчерпании квоты
+// ПРОВАЙДЕРЫ — порядок ротации
 // ====================================================
-function getGeminiKeys(env) {
-  const keys = [
+function getProviders(env) {
+  const providers = [];
+
+  // Groq — основной (быстрый, щедрый лимит)
+  if (env.GROQ_API_KEY) {
+    providers.push({ type: 'groq', key: env.GROQ_API_KEY });
+  }
+
+  // Gemini — запасные ключи
+  const geminiKeys = [
     env.GEMINI_API_KEY,
     env.GEMINI_API_KEY_kuchuguraanna,
     env.GEMINI_API_KEY_hannakuchuhura,
@@ -24,7 +32,12 @@ function getGeminiKeys(env) {
     env.GEMINI_API_KEY_viacarotta,
     env.GEMINI_API_KEY_acket_rom,
   ].filter(Boolean);
-  return keys;
+
+  for (const key of geminiKeys) {
+    providers.push({ type: 'gemini', key });
+  }
+
+  return providers;
 }
 
 // ====================================================
@@ -52,41 +65,74 @@ async function fetchAllDocs() {
 }
 
 // ====================================================
-// GEMINI — с автоматической ротацией ключей
+// ЗАПРОС К GROQ
 // ====================================================
-function isQuotaError(data) {
-  if (!data.error) return false;
-  const msg = data.error.message || '';
-  return msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || data.error.code === 429;
+async function askGroq(prompt, key) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000,
+      temperature: 0.3,
+    })
+  });
+  const data = await res.json();
+  if (data.error) {
+    const isQuota = data.error.code === 'rate_limit_exceeded' || 
+                    data.error.type === 'tokens' ||
+                    res.status === 429;
+    if (isQuota) throw new Error('QUOTA');
+    throw new Error(data.error.message);
+  }
+  return data?.choices?.[0]?.message?.content || 'Нет ответа.';
 }
 
-async function askGemini(prompt, keys) {
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 2000, temperature: 0.3 }
-          })
-        }
-      );
-      const data = await res.json();
+// ====================================================
+// ЗАПРОС К GEMINI
+// ====================================================
+async function askGemini(prompt, key) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 2000, temperature: 0.3 }
+      })
+    }
+  );
+  const data = await res.json();
+  if (data.error) {
+    const isQuota = data.error.code === 429 || 
+                    (data.error.message || '').includes('quota') ||
+                    (data.error.message || '').includes('RESOURCE_EXHAUSTED');
+    if (isQuota) throw new Error('QUOTA');
+    throw new Error(data.error.message);
+  }
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет ответа.';
+}
 
-      if (isQuotaError(data)) {
-        console.log(`Ключ ${i + 1} исчерпан, пробуем следующий...`);
+// ====================================================
+// РОТАЦИЯ ПРОВАЙДЕРОВ
+// ====================================================
+async function askAI(prompt, providers) {
+  for (let i = 0; i < providers.length; i++) {
+    const p = providers[i];
+    try {
+      if (p.type === 'groq') return await askGroq(prompt, p.key);
+      if (p.type === 'gemini') return await askGemini(prompt, p.key);
+    } catch (err) {
+      if (err.message === 'QUOTA') {
+        console.log(`Провайдер ${i + 1} (${p.type}) исчерпан, пробуем следующий...`);
         continue;
       }
-
-      if (data.error) throw new Error(data.error.message);
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет ответа.';
-    } catch (err) {
-      if (i === keys.length - 1) throw err;
-      console.log(`Ключ ${i + 1} ошибка, пробуем следующий...`);
+      throw err;
     }
   }
   throw new Error('QUOTA_EXHAUSTED');
@@ -110,9 +156,9 @@ export default async function handler(req, res) {
     const combatTypeLabel = combatType === 'pvp' ? 'PvP' : 'PvE';
 
     const gameData = await fetchAllDocs();
-    const keys = getGeminiKeys(req.env || process.env);
+    const providers = getProviders(process.env);
 
-    if (keys.length === 0) {
+    if (providers.length === 0) {
       return res.status(500).json({ error: 'Нет доступных API ключей' });
     }
 
@@ -155,7 +201,7 @@ ${gameData}
 ЗАПРОС:
 ${query}`;
 
-    const answer = await askGemini(prompt, keys);
+    const answer = await askAI(prompt, providers);
     return res.status(200).json({ result: answer });
 
   } catch (err) {
